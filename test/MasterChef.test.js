@@ -83,7 +83,7 @@ contract('MasterChef', ([ owner, user1, user2, minter, dev ]) => {
             assert.equal((await this.sushi.totalSupply()).valueOf(), '5500')
          })
 
-         it('should not ditribute Sushis if a deposit has not been made', async () => {
+         it('should only ditribute Sushis if a deposit has been made', async () => {
             // 100 per block farming rate starting at block 200 with bonus until block 1000
             this.chef = await MasterChef.new(this.sushi.address, dev, '100', '200', '1000', { from: owner });
             await this.sushi.transferOwnership(this.chef.address, { from: owner });
