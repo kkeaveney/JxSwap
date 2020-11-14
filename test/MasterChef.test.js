@@ -106,5 +106,54 @@ contract('MasterChef', ([ owner, user1, user2, minter, dev ]) => {
             assert.equal((await this.sushi.balanceOf(dev)).valueOf(), '1000');
             assert.equal((await this.lp.balanceOf(user1)).valueOf(), '1000');
          })
+
+         it('should properly distribute Sushi to each Staker', async () => {
+            // 100 per block farming rate starting at block 300 with bonus until block 1000
+            this.chef = await MasterChef.new(this.sushi.address, dev, '100', '300', '1000', { from: owner })
+            await this.sushi.transferOwnership(this.chef.address, { from: owner })
+            await this.chef.add('100', this.lp.address, true)
+            await this.lp.approve(this.chef.address, '1000', { from: owner })
+            await this.lp.approve(this.chef.address, '1000', { from: user1 })
+            await this.lp.approve(this.chef.address, '1000', { from: user2 })
+            // Owner deposits 10 Lps at block 310
+            await time.advanceBlockTo('309')
+            await this.chef.deposit(0, '10', { from: owner })
+            
+            // User1 deposits 20 Lps at block 314
+            await time.advanceBlockTo('313')
+            await this.chef.deposit(0, '20', { from: user1 })
+            console.log(await this.sushi.totalSupply())
+            // User 2 deposits 30 Lps at block 318
+            await time.advanceBlockTo('317')
+            await this.chef.deposit(0, '30', { from: user2 })
+             // Owner deposits 10 more LPs at block 320. At this point:
+            //   Owner should have: 4*1000 + 4*1/3*1000 + 2*1/6*1000 = 5666
+            //   MasterChef should have the remaining: 10000 - 5666 = 4334
+            await time.advanceBlockTo('319')
+            await this.chef.deposit(0, '10', { from: owner })
+            assert.equal((await this.sushi.totalSupply()).valueOf(), '11000')
+            assert.equal((await this.sushi.balanceOf(owner)).valueOf(), '5666')
+            assert.equal((await this.sushi.balanceOf(user1)).valueOf(), '0')
+            assert.equal((await this.sushi.balanceOf(user2)).valueOf(), '0')
+            assert.equal((await this.sushi.balanceOf(this.chef.address)).valueOf(), '4334')
+            assert.equal((await this.sushi.balanceOf(dev)).valueOf(), '1000')
+             // User1 withdraws 5 LPs at block 330. At this point:
+            //   User1 should have: 4*2/3*1000 + 2*2/6*1000 + 10*2/7*1000 = 6190
+            await time.advanceBlockTo('329')
+            await this.chef.withdraw(0, '5', { from: user1 })
+            assert.equal((await this.sushi.totalSupply()).valueOf(), '22000')
+            assert.equal((await this.sushi.balanceOf(owner)).valueOf(), '5666')
+            assert.equal((await this.sushi.balanceOf(user1)).valueOf(), '6190')
+            assert.equal((await this.sushi.balanceOf(user2)).valueOf(), '0')
+            
+
+
+            
+            
+            
+            
+
+
+         })
     })
 })
