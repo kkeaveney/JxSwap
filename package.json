@@ -5,7 +5,6 @@
   "license": "MIT",
   "dependencies": {
     "@openzeppelin/contracts": "^3.1.0",
-    "@openzeppelin/test-helpers": "^0.5.6",
     "babel-polyfill": "6.26.0",
     "babel-preset-env": "1.7.0",
     "babel-preset-es2015": "6.24.1",
@@ -14,10 +13,22 @@
     "babel-register": "6.26.0",
     "chai-as-promised": "^7.1.1",
     "dotenv": "6.2.0",
+    "npm-run-all": "^4.1.5",
     "truffle": "^5.1.41",
     "truffle-flattener": "^1.4.4",
     "truffle-hdwallet-provider-privkey": "1.0.3",
     "truffle-plugin-verify": "^0.4.0",
+    "ttab": "^0.7.0",
     "web3": "1.0.0-beta.46"
+  },
+  "devDependencies": {
+    "@openzeppelin/test-helpers": "^0.5.9"
+  },
+  "scripts": {
+    "start_ganache": "ganache-cli -p 7545",
+    "truffle_test": "truffle test test/MasterChef.test.js",
+    "tab:start_ganache":"ttab npm run start_ganache",
+    "tab:truffle_test":"ttab npm run truffle_test",
+    "start_ganache_truffle_tests": "npm run start_ganache & npm run tab:truffle_test"
   }
 }
