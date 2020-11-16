@@ -122,7 +122,7 @@ contract('MasterChef', ([ owner, user1, user2, minter, dev ]) => {
             // User1 deposits 20 Lps at block 314
             await time.advanceBlockTo('313')
             await this.chef.deposit(0, '20', { from: user1 })
-            console.log(await this.sushi.totalSupply())
+            
             // User 2 deposits 30 Lps at block 318
             await time.advanceBlockTo('317')
             await this.chef.deposit(0, '30', { from: user2 })
@@ -145,15 +145,75 @@ contract('MasterChef', ([ owner, user1, user2, minter, dev ]) => {
             assert.equal((await this.sushi.balanceOf(owner)).valueOf(), '5666')
             assert.equal((await this.sushi.balanceOf(user1)).valueOf(), '6190')
             assert.equal((await this.sushi.balanceOf(user2)).valueOf(), '0')
-            
-
-
-            
-            
-            
-            
-
-
+            assert.equal((await this.sushi.balanceOf(this.chef.address)).valueOf(), '8144')
+            assert.equal((await this.sushi.balanceOf(dev)).valueOf(), '2000')
+            // owner withdraws 20 LPs at block 340
+            // user1 withdraws 15 LPs at block 350
+            // user2 withdraws 30 LPs at block 360
+            await time.advanceBlockTo('339')
+            await this.chef.withdraw(0, '20', { from: owner })
+            await time.advanceBlockTo('349')
+            await this.chef.withdraw(0, '15', { from: user1 })
+            await time.advanceBlockTo('359')
+            await this.chef.withdraw(0, '30', { from: user2 })
+            assert.equal((await this.sushi.totalSupply()).valueOf(), '55000')
+            assert.equal((await this.sushi.balanceOf(dev)).valueOf(), '5000')
+             // owner should have: 5666 + 10*2/7*1000 + 10*2/6.5*1000 = 11600
+            assert.equal((await this.sushi.balanceOf(owner)).valueOf(), '11600')
+            // user1 should have: 6190 + 10*1.5/6.5 * 1000 + 10*1.5/4.5*1000 = 11831
+            assert.equal((await this.sushi.balanceOf(user1)).valueOf(), '11831')
+            // user2 should have: 2*3/6*1000 + 10*3/7*1000 + 10*3/6.5*1000 + 10*3/4.5*1000 + 10*1000 = 26568
+            assert.equal((await this.sushi.balanceOf(user2)).valueOf(), '26568')
+            // All of them should have 1000 LPs back.
+            assert.equal((await this.lp.balanceOf(owner)).valueOf(), '1000')
+            assert.equal((await this.lp.balanceOf(user1)).valueOf(), '1000')
+            assert.equal((await this.lp.balanceOf(user2)).valueOf(), '1000')        
          })
+
+         it('should give proper SUSHIS allocation to each pool', async () => {
+            // 100 per block farming rate starting at block 400 with bonus until block 1000
+            this.chef = await MasterChef.new(this.sushi.address, dev, '100', '400', '1000', { from: owner });
+            await this.sushi.transferOwnership(this.chef.address, { from: owner })
+            await this.lp.approve(this.chef.address, '1000', { from: owner })
+            await this.lp2.approve(this.chef.address, '1000', { from: user1 })
+            // Add first LP to the pool with allocation 1
+            await this.chef.add('10', this.lp.address, true)
+            // owner deposits 10 LPs at block 410
+            await time.advanceBlockTo('409')
+            await this.chef.deposit(0, '10', { from: owner })
+            // Add LP2 to the pool with allocation 2 at block 420
+            await time.advanceBlockTo('419')
+            await this.chef.add('20', this.lp2.address, true)
+            // owner should have 10*1000 pening reward
+            assert.equal((await this.chef.pendingSushi(0, owner)).valueOf(), '10000')
+            // user1 deposits 10 LP2s at block 425
+            await time.advanceBlockTo('424')
+            await this.chef.deposit(1, '5', { from: user1 })
+            // owner should have 10000 + 5*1/3*1000 = 11666 pending reward
+            assert.equal((await this.chef.pendingSushi(0, owner)).valueOf(), '11666')
+            await time.advanceBlockTo('430')
+            // At block 430. Bob should get 5*2/3*1000 = 3333. Alice should get ~1666 more.
+            assert.equal((await this.chef.pendingSushi(0, owner)).valueOf(), '13333')
+            assert.equal((await this.chef.pendingSushi(1, user1)).valueOf(), '3333')
+        })
+
+        it('should stop giving bonus SUSHIs after the bonus period ends', async () => {
+            // 100 per block farming rate starting at block 500 with bonus until block 600
+            this.chef = await MasterChef.new(this.sushi.address, dev, '100', '500', '600' , { from: owner })
+            await this.sushi.transferOwnership(this.chef.address, { from: owner })
+            await this.lp.approve(this.chef.address, '1000', { from: owner })
+            await this.chef.add('1', this.lp.address, true)
+            // owner deposits 10 LPs at block 590
+            await time.advanceBlockTo('589')
+            await this.chef.deposit(0, '10', { from: owner })
+            // At block 605, owner  should have 1000*10 + 100*5 = 10500 pending.
+            await time.advanceBlockTo('605')
+            assert.equal((await this.chef.pendingSushi(0, owner)).valueOf(), '10500')
+             // At block 606, owner withdraws all pending rewards and should get 10600.
+            await this.chef.deposit(0, '0', { from: owner })
+            assert.equal((await this.chef.pendingSushi(0, owner)).valueOf(), '0')
+            assert.equal((await this.sushi.balanceOf(owner)).valueOf(), '10600')
+
+        })
     })
 })
