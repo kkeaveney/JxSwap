@@ -213,7 +213,18 @@ contract('MasterChef', ([ owner, user1, user2, minter, dev ]) => {
             await this.chef.deposit(0, '0', { from: owner })
             assert.equal((await this.chef.pendingSushi(0, owner)).valueOf(), '0')
             assert.equal((await this.sushi.balanceOf(owner)).valueOf(), '10600')
+        })
 
+        it('Prints out reward info', async () => {
+            this.chef = await MasterChef.new(this.sushi.address, dev, '100', '700', '701' , { from: owner })
+            await this.sushi.transferOwnership(this.chef.address, { from: owner })
+            await this.lp.approve(this.chef.address, '1000', { from: owner })
+            await this.chef.add('1', this.lp.address, true)
+            // owner deposits 10 LPs at block 700
+            await time.advanceBlockTo('699')
+            await this.chef.deposit(0, '1', { from: owner })
+            await time.advanceBlockTo('709')
+            console.log(await this.chef.pendingSushi(0, owner))
         })
     })
 })
